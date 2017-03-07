@@ -55,7 +55,7 @@ public class EfficientMatch {
 //		System.out.println("  ");
 //		System.out.println(test.substore[0][1].ub[0]);
 //		
-//		aa=test.match();
+
 		
 		System.out.println(aa[0]);
 		
