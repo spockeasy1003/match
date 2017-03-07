@@ -1,0 +1,285 @@
+package EfficientMatch;
+
+import java.util.*;
+import java.util.regex.MatchResult;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.io.*;
+
+public class EfficientMatch {
+	int [][]event;
+	int [][][]subs;
+	int []subsidnumber;
+	Random rand=new Random();
+	int numberofsubs;
+	int numberofattri;
+	int numberofevent;
+	Bucket [][]substore;
+	Bucket2 [][]bucketstore;
+	public static void main(String[] args) {
+		Random n=new Random();
+		Set<Integer> []aa=new Set[1];
+		aa[0]=new HashSet<>();
+		
+
+		List<Long> tt=new ArrayList<>();
+		for(int i=0;i<10;i++){
+			Long aaa;
+			aaa=((long)n.nextInt(20))<<32;
+			aaa=aaa+n.nextInt(50);
+			tt.add(aaa);
+		}
+		for(int i=0;i<10;i++){
+			System.out.format("%x", tt.get(i));
+			System.out.print(" ");
+		}
+		System.out.println("after:");
+		Collections.sort(tt,new Mycomparetor());
+		for(int i=0;i<10;i++){
+			System.out.format("%x", tt.get(i));
+			System.out.print(" ");
+		}
+		
+//		EfficientMatch test=new EfficientMatch();
+//		test.init(1000, 50, 1);
+//		test.RandGenSubs(20);
+//		test.RandGenSubs(20);
+//		
+//		test.StoreinBucket();
+//		
+//		test.bukcetsort();
+//		for(int i=0;i<test.substore[0][1].ub[0].size();i++){
+//			System.out.format("%x", test.substore[0][1].ub[0].get(i));
+//			System.out.print("  ");
+//		}
+//		System.out.println("  ");
+//		System.out.println(test.substore[0][1].ub[0]);
+//		
+//		aa=test.match();
+		
+		System.out.println(aa[0]);
+		
+	}
+	void init(int n1,int n2,int n3){
+		subs=new int[n1][n2][2];
+		event=new int[n3][n2];
+		numberofsubs=n1;
+		numberofattri=n2;
+		numberofevent=n3;
+		substore=new Bucket[n2][n2];
+		subsidnumber=new int[n1];
+		// object init
+		for(int i=0;i<numberofattri-1;i++){
+			for(int j=0;j<numberofattri;j++){
+				bucketstore[i][j]=new Bucket2();
+			}
+		}
+	}
+	void RandGenSubs(int randn){
+		for(int i=0;i<numberofsubs;i++){
+			for(int j=0;j<numberofattri;j++){
+				float flag=rand.nextFloat();
+				if(flag>0.1){
+					subs[i][j][0]=-1;
+					subs[i][j][1]=-1;
+					continue;
+				}else{
+					int temp1=rand.nextInt(randn);
+					int temp2=rand.nextInt(randn);
+					subs[i][j][0]=temp1;
+					subs[i][j][1]=(temp1+temp2)>randn?randn:(temp1+temp2);
+				}
+			}
+		}
+	}
+	void RandGenEvent(int randn){
+		for(int j=0;j<numberofevent;j++){
+			for(int i=0;i<numberofattri;i++){
+				float flag=rand.nextFloat();
+				if(flag>0.2){
+					event[j][i]=-1;
+					continue;
+				}else{
+					event[j][i]=rand.nextInt(randn);
+				}
+			}
+		}
+		
+	}
+	void StoreinBucket(){
+		//store subscriptions in bucket;
+		
+		for(int i=0;i<numberofsubs;i++){
+			int []haveattri=new int[numberofattri];
+			int k=0;
+			for(int j=0;j<numberofattri;j++){
+				haveattri[j]=-1;
+			}
+			for(int j=0;j<numberofattri;j++){
+				if(subs[i][j][1]!=-1){
+					haveattri[k++]=j;
+				}
+			}
+			subsidnumber[i]=k;
+			for(int j=0;j<k-1;j++){
+				long addin;
+				addin=((long)i)<<32;
+				addin=addin+(long)subs[i][haveattri[j]][1];
+				substore[haveattri[j]][haveattri[j+1]].ub[0].add(addin);//id + upbound
+				addin=((long)i)<<32;
+				addin=addin+(long)subs[i][haveattri[j]][0];
+				substore[haveattri[j]][haveattri[j+1]].lb[0].add(addin);
+			}
+			//last one;
+			if(k>=2){
+				long addin;
+				addin=((long)i)<<32;
+				addin=addin+(long)subs[i][haveattri[k-1]][1];
+				substore[haveattri[k-2]][haveattri[k-1]].ub[1].add(addin);//id + upbound
+				addin=((long)i)<<32;
+				addin=addin+(long)subs[i][haveattri[k-1]][0];
+				substore[haveattri[k-2]][haveattri[k-1]].lb[1].add(addin);//id + low bound
+			}
+			
+			
+		}
+	}
+	
+	void bukcetsort(){
+		for(int i=0;i<numberofattri-1;i++){
+			for(int j=i+1;j<numberofattri;j++){
+				for(int l=0;l<2;l++){
+					if(substore[i][j].ub[l]!=null){
+						Collections.sort(substore[i][j].ub[l],new Mycomparetor());
+					}
+					if(substore[i][j].lb[l]!=null){
+						Collections.sort(substore[i][j].lb[l],new Mycomparetor());
+					}
+				}
+			}
+		}
+	}
+	void bucketinsert(){
+		
+	}
+	Set<Integer> bisectfind(Bucket A,int l,int value){
+		Set<Integer> result1=new HashSet<>();
+		int size=A.ub[l].size()-1;
+		int low=0;
+		int high=size;
+		while(low<high){
+			int mid=(low+high)/2;
+			if((A.ub[l].get(mid)&0xffffffffL)>=value){
+				high=mid-1;
+			}else if((A.ub[l].get(mid)&0xffffffffL)<value){
+				low=mid+1;
+			}
+		}
+		int upflag=high+1;
+		if(upflag<=size){
+			for(int i=upflag;i<size+1;i++){
+				result1.add((int)(A.ub[l].get(i)>>32));
+			}
+		}
+		int low2=0;
+		int high2=A.ub[l].size()-1;
+		while(low2<high2){
+			int mid=(low2+high2)/2;
+			if((A.lb[l].get(mid)&0xffffffffL)>value){
+				high2=mid-1;
+			}else if((A.lb[l].get(mid)&0xffffffffL)<=value){
+				low2=mid+1;
+			}
+		}
+		int lowflag=low-1;
+		Set<Integer> result2=new HashSet<>();
+		if(lowflag>=0){
+			for(int i=0;i<=lowflag;i++){
+				result2.add((int)(A.lb[l].get(i)>>32));
+			}
+		}
+		result1.retainAll(result2);
+		return result1;
+	}
+	Set<Integer>[] match(){
+		Set<Integer>[]MatchedSub=new Set[numberofevent];
+		for(int n=0;n<numberofevent;n++){
+			MatchedSub[n]=new HashSet<>();
+		}
+		for(int n=0;n<numberofevent;n++){
+			Set<Integer> MatchedSubID=new HashSet<>();
+			Map<Integer,Integer> SubConCouters=new HashMap<>();
+			int []haveattri=new int[numberofattri];
+			int k=0;
+			for(int j=0;j<numberofattri;j++){//init
+				haveattri[j]=-1;
+			}
+			for(int j=0;j<numberofattri;j++){
+				if(event[n][j]==-1){//mark attribute;
+					haveattri[k++]=j;
+				}
+			}
+			for(int i=0;i<k-1;i++){
+				for(int j=i+1;j<k;j++){
+					for(int l=0;l<2;l++){
+						Set<Integer> ConMatchedSubIDs=new HashSet<>();
+						ConMatchedSubIDs.addAll(bisectfind(substore[i][j],l,event[i][j]));
+						for(int subid:ConMatchedSubIDs){
+							if(!SubConCouters.containsKey(subid)){
+								SubConCouters.put(subid, 1);
+							}else{
+								SubConCouters.put(subid, SubConCouters.get(subid)+1);
+							}
+						}
+					}
+				}
+			}
+			
+			for(int subid:SubConCouters.keySet()){
+				if(SubConCouters.get(subid)==subsidnumber[subid]){
+					MatchedSubID.add(subid);
+				}
+			}
+			MatchedSub[n].addAll(MatchedSubID);
+		}
+		return MatchedSub;
+	}
+
+}
+class Mycomparetor implements Comparator<Long>{
+
+	@Override
+	public int compare(Long a1,Long a2) {
+		
+		return (a1&(0xffffffffL)-a2&(0xffffffffL))>0?1:-1;
+	}
+	
+}
+class Bucket{
+	List<Long> []ub=new List[2];
+	List<Long> []lb=new List[2];
+	Bucket(){
+		ub[0]=new ArrayList<>();
+		ub[1]=new ArrayList<>();
+		lb[0]=new ArrayList<>();
+		lb[1]=new ArrayList<>();
+	}
+	
+}
+class Bucket2{
+	List<Integer> []ub=new List[2];
+	List<Integer> []ubid=new List[2];
+	List<Integer> []lb=new List[2];
+	List<Integer> []lbid=new List[2];
+	Bucket2(){
+		ub[0]=new ArrayList<>();
+		ub[1]=new ArrayList<>();
+		lb[0]=new ArrayList<>();
+		lb[1]=new ArrayList<>();
+		ubid[0]=new ArrayList<>();
+		ubid[1]=new ArrayList<>();
+		lbid[0]=new ArrayList<>();
+		lbid[1]=new ArrayList<>();
+	}
+	
+}
